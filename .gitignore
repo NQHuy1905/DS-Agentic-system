@@ -17,6 +17,10 @@ node_modules/
 client/dist/
 dist/
 
+# Logs
+logs/
+*.log
+
 # Editor / OS
 .DS_Store
 .idea/
