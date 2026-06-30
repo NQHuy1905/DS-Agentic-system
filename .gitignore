@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+env/
+
+# Environment / secrets
+.env
+.env.local
+*.local
+
+# Node / frontend
+node_modules/
+client/dist/
+dist/
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+
+# EDA runtime artifacts (uploaded datasets, run buffers, generated reports)
+server/data/
+server/.eda_runs/
