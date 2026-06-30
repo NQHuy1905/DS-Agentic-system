@@ -1,22 +1,27 @@
 flowchart TD
     Start(["New dataset / batch arrives"]) --> Frame
 
-    subgraph Framing["Phase 0 - Framing Agent (runs once)"]
+    subgraph Framing["Phase 0 - Framing Agent (LLM)"]
         Frame["Elicit objective, grain, provenance"]
-        Frame --> Priors["Build Expectation Model:<br/>schema, ranges, null-rate priors,<br/>row-count magnitude, valid categories"]
+        Frame --> Priors["Build Expectation Model"]
+        G_frame["GUARD - validate framing:<br/>schema sanity-check, type compatibility,<br/>redact PII before rows leave boundary"]:::truth
+        Priors -.guard.-> G_frame
     end
 
-    Priors --> Human1{{"Human confirms<br/>objective and data contract"}}
+    Priors --> Human1{{"HARD GATE<br/>human confirms objective + contract"}}
     Human1 --> Orchestrator
 
-    Orchestrator{"Orchestrator / Planner<br/>picks next probe"}
+    Orchestrator{"Orchestrator / Planner (LLM)<br/>picks next probe"}
+    G_orch["GUARD - loop control:<br/>max probes, per-hypothesis cap,<br/>circuit breaker on repeated calls,<br/>cost + wall-clock limits"]:::safety
+    Orchestrator -.guard.-> G_orch
 
-    subgraph Mechanical["Mechanical Profiling Tools (called on demand)"]
-        FirstContact["First Contact:<br/>load, shape, dtypes, eyeball rows"]
-        Structural["Structural Integrity:<br/>missingness, duplicates, validity"]
-        Univariate["Univariate:<br/>distributions, cardinality, gaps"]
-        Bivariate["Bivariate / Multivariate:<br/>correlation, target, segments"]
-        Drift["Time / Drift / Leakage:<br/>stability across batches"]
+    subgraph Mechanical["Mechanical Profiling Tools (Python)"]
+        FirstContact["First Contact"]
+        Structural["Structural Integrity"]
+        Univariate["Univariate"]
+        Bivariate["Bivariate / Multivariate"]
+        Drift["Time / Drift / Leakage"]
+        G_mech["GUARD - context + determinism:<br/>summaries only, sample N rows,<br/>top-k truncation, output size cap,<br/>pinned versions, seeded sampling"]:::safety
     end
 
     Orchestrator -->|run a pass| FirstContact
@@ -31,29 +36,40 @@ flowchart TD
     Bivariate --> Evaluator
     Drift --> Evaluator
 
-    Evaluator["Evaluator:<br/>diff observed vs expected,<br/>emit findings + severity"]
-    Evaluator --> Ledger[("Findings Ledger:<br/>issues, severity, root causes,<br/>decisions and rationale")]
+    Evaluator["Evaluator (hybrid)<br/>Python computes deltas,<br/>LLM scores severity"]
+    G_eval["GUARD - grounding:<br/>every finding must point to the<br/>tool output that produced it"]:::truth
+    Evaluator -.guard.-> G_eval
+
+    Evaluator --> Ledger[("Findings Ledger:<br/>issues, severity, evidence pointers,<br/>root causes, decisions")]
     Evaluator --> Orchestrator
 
-    Orchestrator -->|"open surprise worth chasing"| Hypo
+    Orchestrator -->|open surprise worth chasing| Hypo
 
-    subgraph DeepDive["Phase 6 - Hypothesis Loop (adaptive)"]
-        Hypo["Hypothesis Engine:<br/>why is this weird?<br/>generate causes, trace to source"]
-        Hypo --> Probe["Design and run targeted probe"]
+    subgraph DeepDive["Phase 6 - Hypothesis Loop (LLM-written code)"]
+        Hypo["Hypothesis Engine:<br/>generate causes, trace to source"]
+        Hypo --> Probe["Run probe in sandbox"]
         Probe --> Verdict{"Confirmed?"}
         Verdict -->|no, try next| Hypo
-        Verdict -->|yes| RecordCause["Record root cause + downstream impact"]
+        Verdict -->|yes| RecordCause["Record root cause + impact"]
+        G_sandbox["GUARD - sandbox:<br/>isolated process, read-only dataframe,<br/>timeout + memory cap,<br/>no network / filesystem,<br/>import whitelist"]:::safety
+        Probe -.guard.-> G_sandbox
     end
 
     RecordCause --> Ledger
     RecordCause --> Orchestrator
 
-    Orchestrator -->|"no open surprises<br/>or budget / value exhausted"| Synth
+    Orchestrator -->|budget or value exhausted| Synth
 
-    Synth["Synthesizer:<br/>data dictionary, issue log,<br/>pipeline recommendations, notebook"]
+    Synth["Synthesizer (LLM):<br/>data dictionary, issue log,<br/>recommendations, notebook"]
+    G_synth["GUARD - truthfulness:<br/>claims must trace to a Ledger entry,<br/>propose never execute,<br/>destructive ops need sign-off"]:::truth
+    Synth -.guard.-> G_synth
+
     Ledger --> Synth
-    Synth --> Human2{{"Human reviews findings"}}
+    Synth --> Human2{{"HARD GATE<br/>human reviews findings"}}
     Human2 --> Done(["Reproducible EDA report + validated contract"])
 
     Priors -.priors.-> Evaluator
     Ledger -.working memory.-> Orchestrator
+
+    classDef safety fill:#fde8e8,stroke:#c0392b,stroke-width:1px,color:#7b241c;
+    classDef truth fill:#e8f0fe,stroke:#2c5fb3,stroke-width:1px,color:#1a3a6b;
