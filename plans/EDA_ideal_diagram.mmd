@@ -1,0 +1,59 @@
+flowchart TD
+    Start(["New dataset / batch arrives"]) --> Frame
+
+    subgraph Framing["Phase 0 - Framing Agent (runs once)"]
+        Frame["Elicit objective, grain, provenance"]
+        Frame --> Priors["Build Expectation Model:<br/>schema, ranges, null-rate priors,<br/>row-count magnitude, valid categories"]
+    end
+
+    Priors --> Human1{{"Human confirms<br/>objective and data contract"}}
+    Human1 --> Orchestrator
+
+    Orchestrator{"Orchestrator / Planner<br/>picks next probe"}
+
+    subgraph Mechanical["Mechanical Profiling Tools (called on demand)"]
+        FirstContact["First Contact:<br/>load, shape, dtypes, eyeball rows"]
+        Structural["Structural Integrity:<br/>missingness, duplicates, validity"]
+        Univariate["Univariate:<br/>distributions, cardinality, gaps"]
+        Bivariate["Bivariate / Multivariate:<br/>correlation, target, segments"]
+        Drift["Time / Drift / Leakage:<br/>stability across batches"]
+    end
+
+    Orchestrator -->|run a pass| FirstContact
+    Orchestrator -->|run a pass| Structural
+    Orchestrator -->|run a pass| Univariate
+    Orchestrator -->|run a pass| Bivariate
+    Orchestrator -->|run a pass| Drift
+
+    FirstContact --> Evaluator
+    Structural --> Evaluator
+    Univariate --> Evaluator
+    Bivariate --> Evaluator
+    Drift --> Evaluator
+
+    Evaluator["Evaluator:<br/>diff observed vs expected,<br/>emit findings + severity"]
+    Evaluator --> Ledger[("Findings Ledger:<br/>issues, severity, root causes,<br/>decisions and rationale")]
+    Evaluator --> Orchestrator
+
+    Orchestrator -->|"open surprise worth chasing"| Hypo
+
+    subgraph DeepDive["Phase 6 - Hypothesis Loop (adaptive)"]
+        Hypo["Hypothesis Engine:<br/>why is this weird?<br/>generate causes, trace to source"]
+        Hypo --> Probe["Design and run targeted probe"]
+        Probe --> Verdict{"Confirmed?"}
+        Verdict -->|no, try next| Hypo
+        Verdict -->|yes| RecordCause["Record root cause + downstream impact"]
+    end
+
+    RecordCause --> Ledger
+    RecordCause --> Orchestrator
+
+    Orchestrator -->|"no open surprises<br/>or budget / value exhausted"| Synth
+
+    Synth["Synthesizer:<br/>data dictionary, issue log,<br/>pipeline recommendations, notebook"]
+    Ledger --> Synth
+    Synth --> Human2{{"Human reviews findings"}}
+    Human2 --> Done(["Reproducible EDA report + validated contract"])
+
+    Priors -.priors.-> Evaluator
+    Ledger -.working memory.-> Orchestrator
