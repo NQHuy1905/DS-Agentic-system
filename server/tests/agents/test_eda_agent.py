@@ -143,3 +143,47 @@ async def _resume_not_paused():
 def test_resume_rejected_when_not_paused():
     """A duplicate/early resume must not spawn a second driver on the same thread."""
     asyncio.run(_resume_not_paused())
+
+
+class _BoomLLM:
+    """Simulates a provider failure mid-call, with a secret in the exception text."""
+
+    def with_structured_output(self, schema):
+        class _B:
+            def invoke(self, prompt):
+                raise RuntimeError("provider 500: leaked sk-secret-abc123")
+        return _B()
+
+    def invoke(self, prompt):
+        raise RuntimeError("provider 500: leaked sk-secret-abc123")
+
+
+async def _drive_llm_failure():
+    conn = await aiosqlite.connect(":memory:")
+    try:
+        saver = AsyncSqliteSaver(conn)
+        await saver.setup()
+        service = EDAService(saver)
+        ref = storage.save_upload(_CSV, "err_fixture.csv")
+        await service.start("err-run", _BoomLLM(), ref, "obj")
+        await service._tasks["err-run"]
+        assert service.status("err-run") == "error"
+        ev = service.replay("err-run", 0)
+        assert ev[-1].type == "error"
+        assert ev[-1].message == "The analysis run failed unexpectedly."   # generic
+        assert "sk-secret" not in ev[-1].message                            # raw detail not leaked
+        assert "err-run" not in service._llms                               # secret store cleared
+    finally:
+        await conn.close()
+
+
+def test_llm_failure_yields_generic_error_event():
+    """An LLM/provider failure ends the run cleanly as an ErrorEvent, no secret leak."""
+    asyncio.run(_drive_llm_failure())
+
+
+def test_state_schema_excludes_secrets():
+    """The graph state (and thus the checkpoint) must never carry the api_key/LLM."""
+    from app.models.eda_schemas import EDAState
+    keys = set(EDAState.__annotations__)
+    assert "llm" not in keys and "api_key" not in keys

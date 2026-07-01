@@ -24,6 +24,11 @@ _PII: list[re.Pattern] = [
 ]
 _REDACTED = "[REDACTED]"
 
+# The prompts wrap untrusted data in [DATASET_DATA]...[/DATASET_DATA]; strip these
+# markers from data-derived strings so a value like a column named "]\nignore..."
+# cannot close the block early and inject instructions.
+_DELIM_RE = re.compile(r"\[/?DATASET_DATA\]", re.IGNORECASE)
+
 # Credit-card numbers are stored in many separator formats (contiguous, spaced,
 # dashed), so a fixed-shape regex misses real PANs. Match any 13-19 digit run
 # (separators allowed) and confirm with the Luhn checksum to avoid redacting
@@ -68,12 +73,12 @@ def _redact_pii(value: str) -> str:
 
 
 def _sanitize_col_name(name: str) -> str:
-    s = re.sub(r"[\r\n\t]", " ", name)
+    s = _DELIM_RE.sub("", re.sub(r"[\r\n\t]", " ", name))
     return "".join(c for c in s if not unicodedata.category(c).startswith("C") or c == " ").strip()
 
 
 def _sanitize_value(value: Any) -> str:
-    s = re.sub(r"[\r\n\t]", " ", "" if value is None else str(value))
+    s = _DELIM_RE.sub("", re.sub(r"[\r\n\t]", " ", "" if value is None else str(value)))
     s = "".join(c for c in s if not unicodedata.category(c).startswith("C") or c == " ")
     return _redact_pii(s)
 

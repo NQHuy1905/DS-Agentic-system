@@ -1,8 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
+from app.core.tracing import configure_tracing
 from app.api.routes import eda, feature_engineering, hyperparam_opt, model_monitoring, pipeline_orchestration
 from app.ingestion.router import router as ingestion_router
+
+configure_tracing()  # no-op unless LANGCHAIN_TRACING_V2 is set; masks data when on
 
 app = FastAPI(title=settings.app_name, debug=settings.debug)
 
