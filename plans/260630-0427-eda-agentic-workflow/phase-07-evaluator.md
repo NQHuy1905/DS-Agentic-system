@@ -1,7 +1,7 @@
 ---
 phase: 7
 title: "Evaluator"
-status: pending
+status: completed
 priority: P1
 effort: "1-2d"
 dependencies: [1]

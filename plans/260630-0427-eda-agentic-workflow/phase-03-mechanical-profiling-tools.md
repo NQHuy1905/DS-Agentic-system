@@ -1,7 +1,7 @@
 ---
 phase: 3
 title: "Mechanical Profiling Tools"
-status: pending
+status: completed
 priority: P1
 effort: "2-3d"
 dependencies: [1]

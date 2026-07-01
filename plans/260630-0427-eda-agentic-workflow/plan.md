@@ -1,7 +1,7 @@
 ---
 title: "EDA Agentic Workflow"
-description: ""
-status: pending
+description: "Completed 2026-07-01 — all 11 phases shipped, 237 tests passing."
+status: completed
 priority: P2
 branch: "master"
 tags: []
@@ -20,6 +20,20 @@ Senior-grade, hypothesis-driven EDA agent built as a LangGraph state machine. Ca
 
 Source design: `plans/reports/eda-agentic-workflow-architecture-brainstorm-report.md`
 
+## Delivered (2026-07-01)
+
+All 11 phases shipped to `master`; **237 tests passing**. Architecture doc:
+`docs/system-architecture.md`; changelog: `docs/project-changelog.md`.
+
+Key deviations from the original plan (all deliberate, verified):
+- Prompt externalization added mid-build — every node's prompt loads from
+  `server/config/prompts/{node}.yaml` via an injection-safe loader (user request).
+- tool-runner + evaluator fused into one graph node (frozen state carries no
+  transient observation channel).
+- Human checkpoints implemented as static `interrupt_before` no-op gates
+  (`contract_gate`/`review_gate`) — langgraph 0.2.45 has no dynamic `interrupt()`.
+- Budget/severity thresholds left at defaults pending real live-run tuning.
+
 ## Parallel Build Waves
 
 Lock contracts in Phase 1, then fan out. Phases within a wave have disjoint file ownership and run concurrently.
@@ -36,17 +50,17 @@ Lock contracts in Phase 1, then fan out. Phases within a wave have disjoint file
 
 | Phase | Name | Wave | Status |
 |-------|------|------|--------|
-| 1 | [Foundation Contracts](./phase-01-foundation-contracts.md) | W0 | Pending |
-| 2 | [Data Ingestion](./phase-02-data-ingestion.md) | W1 | Pending |
-| 3 | [Mechanical Profiling Tools](./phase-03-mechanical-profiling-tools.md) | W1 | Pending |
-| 4 | [Sandbox Executor](./phase-04-sandbox-executor.md) | W1 | Pending |
-| 5 | [Frontend EDA Panel](./phase-05-frontend-eda-panel.md) | W1 | Pending |
-| 6 | [Framing Agent and Expectation Model](./phase-06-framing-agent-and-expectation-model.md) | W2 | Pending |
-| 7 | [Evaluator](./phase-07-evaluator.md) | W2 | Pending |
-| 8 | [Synthesizer](./phase-08-synthesizer.md) | W2 | Pending |
-| 9 | [Orchestrator and Graph Wiring](./phase-09-orchestrator-and-graph-wiring.md) | W3 | Pending |
-| 10 | [Hypothesis Engine](./phase-10-hypothesis-engine.md) | W3 | Pending |
-| 11 | [Integration Hardening](./phase-11-integration-hardening.md) | W4 | Pending |
+| 1 | [Foundation Contracts](./phase-01-foundation-contracts.md) | W0 | ✅ Done |
+| 2 | [Data Ingestion](./phase-02-data-ingestion.md) | W1 | ✅ Done |
+| 3 | [Mechanical Profiling Tools](./phase-03-mechanical-profiling-tools.md) | W1 | ✅ Done |
+| 4 | [Sandbox Executor](./phase-04-sandbox-executor.md) | W1 | ✅ Done |
+| 5 | [Frontend EDA Panel](./phase-05-frontend-eda-panel.md) | W1 | ✅ Done |
+| 6 | [Framing Agent and Expectation Model](./phase-06-framing-agent-and-expectation-model.md) | W2 | ✅ Done |
+| 7 | [Evaluator](./phase-07-evaluator.md) | W2 | ✅ Done |
+| 8 | [Synthesizer](./phase-08-synthesizer.md) | W2 | ✅ Done |
+| 9 | [Orchestrator and Graph Wiring](./phase-09-orchestrator-and-graph-wiring.md) | W3 | ✅ Done |
+| 10 | [Hypothesis Engine](./phase-10-hypothesis-engine.md) | W3 | ✅ Done |
+| 11 | [Integration Hardening](./phase-11-integration-hardening.md) | W4 | ✅ Done |
 
 ## File Ownership (parallel-safe boundaries)
 

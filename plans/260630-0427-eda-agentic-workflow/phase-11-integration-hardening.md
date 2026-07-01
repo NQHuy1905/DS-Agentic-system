@@ -1,7 +1,7 @@
 ---
 phase: 11
 title: "Integration Hardening"
-status: pending
+status: completed
 priority: P2
 effort: "2d"
 dependencies: [9, 10]

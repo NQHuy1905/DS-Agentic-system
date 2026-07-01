@@ -1,7 +1,7 @@
 ---
 phase: 4
 title: "Sandbox Executor"
-status: pending
+status: completed
 priority: P1
 effort: "2d"
 dependencies: [1]
