@@ -8,6 +8,7 @@ from __future__ import annotations
 from typing import Any
 
 import app.ingestion.storage as _storage
+from app.core.prompt_loader import render_prompt
 from app.models.eda_schemas import EDAState, ExpectationModel, Finding
 
 # Severity sort key: critical=0 < warn=1 < info=2 (ascending = highest-priority first)
@@ -28,14 +29,6 @@ _ADVISORY = (
     "listed finding are prefixed *[unverified]* and should be treated as "
     "low-confidence. Deterministic tables are grounded by construction."
 )
-
-# Appended to prose prompts so the LLM actually performs the [unverified] marking
-# the advisory promises — keeping the guard claim and behavior in sync.
-_UNVERIFIED_INSTRUCTION = (
-    "Prefix any statement not directly supported by a listed finding with "
-    "'[unverified]'."
-)
-
 
 def _esc(text: Any) -> str:
     """Escape Markdown table-breaking characters in a cell value."""
@@ -112,28 +105,27 @@ def synthesize(llm: Any, state: EDAState) -> dict[str, str]:
     n_warn = sum(1 for f in ledger if f.severity == "warn")
     n_info = sum(1 for f in ledger if f.severity == "info")
 
+    unverified = render_prompt("synthesizer", "unverified_instruction")
     obj_prose = _prose(
         llm,
-        f"Summarize the EDA objective and grain in 2-3 sentences for a technical report.\n"
-        f"Objective: {objective}\nGrain: {grain}\nProvenance: {provenance}\n"
-        "Be concise. Do not invent facts beyond what is provided.",
+        render_prompt("synthesizer", "objective",
+                      objective=objective, grain=grain, provenance=provenance),
     )
     findings_summary = "\n".join(
         f"- {f.id} | {f.severity} | {f.description[:100]}" for f in ledger
     )
     recs_prose = _prose(
         llm,
-        "Propose pipeline recommendations (transforms, imputation, drops) based on findings.\n"
-        "Proposals only — do NOT execute anything. Reference finding IDs.\n"
-        f"Critical: {n_crit}, Warn: {n_warn}, Info: {n_info}.\n"
-        f"Findings:\n{findings_summary}\nLimit: 400 words.\n" + _UNVERIFIED_INSTRUCTION,
+        render_prompt("synthesizer", "recommendations",
+                      n_crit=n_crit, n_warn=n_warn, n_info=n_info,
+                      findings_summary=findings_summary, unverified_instruction=unverified),
     )
     caveats_prose = _prose(
         llm,
-        f"List 3-5 caveats and limitations for this EDA report.\n"
-        f"run_id={run_id}, total findings={len(ledger)}, "
-        f"critical={n_crit}, warn={n_warn}, info={n_info}.\n"
-        "Be honest about what the analysis cannot determine.\n" + _UNVERIFIED_INSTRUCTION,
+        render_prompt("synthesizer", "caveats",
+                      run_id=run_id, n_total=len(ledger),
+                      n_crit=n_crit, n_warn=n_warn, n_info=n_info,
+                      unverified_instruction=unverified),
     )
 
     parts = [

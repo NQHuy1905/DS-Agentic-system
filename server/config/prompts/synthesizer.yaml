@@ -1,0 +1,31 @@
+# Synthesizer node prompts (report narrative sections).
+# Deterministic tables are built in code from the ledger and are NOT here — only
+# the LLM prose prompts. Edit freely; restart the server to apply.
+# {findings_summary} is built in code from ledger entries.
+
+objective: |
+  Summarize the EDA objective and grain in 2-3 sentences for a technical report.
+  Objective: {objective}
+  Grain: {grain}
+  Provenance: {provenance}
+  Be concise. Do not invent facts beyond what is provided.
+
+recommendations: |
+  Propose pipeline recommendations (transforms, imputation, drops) based on findings.
+  Proposals only — do NOT execute anything. Reference finding IDs.
+  Critical: {n_crit}, Warn: {n_warn}, Info: {n_info}.
+  Findings:
+  {findings_summary}
+  Limit: 400 words.
+  {unverified_instruction}
+
+caveats: |
+  List 3-5 caveats and limitations for this EDA report.
+  run_id={run_id}, total findings={n_total}, critical={n_crit}, warn={n_warn}, info={n_info}.
+  Be honest about what the analysis cannot determine.
+  {unverified_instruction}
+
+# Appended to prose prompts so the model marks unsupported claims, matching the
+# report's advisory banner.
+unverified_instruction: |
+  Prefix any statement not directly supported by a listed finding with '[unverified]'.
