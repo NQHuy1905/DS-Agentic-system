@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.api.routes import eda, feature_engineering, hyperparam_opt, model_monitoring, pipeline_orchestration
+from app.ingestion.router import router as ingestion_router
 
 app = FastAPI(title=settings.app_name, debug=settings.debug)
 
@@ -13,6 +14,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(ingestion_router, prefix="/api/v1")
 app.include_router(eda.router, prefix="/api/v1")
 app.include_router(feature_engineering.router, prefix="/api/v1")
 app.include_router(hyperparam_opt.router, prefix="/api/v1")
