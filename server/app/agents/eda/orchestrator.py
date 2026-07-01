@@ -21,7 +21,7 @@ STANDARD_BATTERY = ["first_contact", "structural", "univariate", "bivariate"]
 
 
 class OrchestratorDecision(BaseModel):
-    action: Literal["run_tool", "synthesize"]
+    action: Literal["run_tool", "chase", "synthesize"]
     tool: Optional[str] = None
     reason: str = ""
 
@@ -53,15 +53,17 @@ def orchestrator(state: EDAState, config: dict) -> dict:
 
     if decision.action == "run_tool" and decision.tool:
         return {"next_action": f"run_tool:{decision.tool}"}
+    if decision.action == "chase":
+        return {"next_action": "chase"}
     return {"next_action": "synthesize"}
 
 
 def route_orchestrator(state: EDAState) -> str:
-    """Deterministic G_orch guard — the actual loop control.
+    """Deterministic loop control — the real bound on the pure-LLM router.
 
     Forces the run toward review/synthesis when the budget is spent or when the
     planner re-selects a completed/unknown pass (repeat with no new coverage),
-    so a misbehaving pure-LLM router cannot loop indefinitely.
+    so a misbehaving router cannot loop indefinitely.
     """
     budget = state["budget"]
     if budget.probes_spent >= budget.max_probes:
@@ -75,4 +77,11 @@ def route_orchestrator(state: EDAState) -> str:
         if tool not in STANDARD_BATTERY or tool in completed:
             return "review_gate"
         return "tool_runner"
+    if action == "chase":
+        # Bounded by the hypothesis budget, which also indexes which surprise is
+        # chased next; when spent or all surprises are chased, advance to review.
+        surprises = state.get("open_surprises", [])  # type: ignore[call-overload]
+        if budget.hypo_spent >= budget.max_hypo_iters or budget.hypo_spent >= len(surprises):
+            return "review_gate"
+        return "hypothesis"
     return "review_gate"

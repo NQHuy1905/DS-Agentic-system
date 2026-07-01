@@ -20,6 +20,7 @@ from langgraph.graph import END, START, StateGraph
 
 from app.agents.eda.evaluator import evaluate
 from app.agents.eda.framing import framing
+from app.agents.eda.hypothesis import hypothesis
 from app.agents.eda.orchestrator import orchestrator, route_orchestrator
 from app.agents.eda.synthesizer import synthesizer
 from app.ingestion.loader import load_dataframe
@@ -28,20 +29,12 @@ from app.tools.registry import run_tool
 
 
 # langgraph requires every node to update >=1 state key; appending an empty list
-# through the `operator.add` ledger/completed_passes reducer is a true no-op.
+# through the `operator.add` completed_passes reducer is a true no-op.
 _NOOP_UPDATE = {"completed_passes": []}
 
 
 def _passthrough(state: EDAState) -> dict:
     """No-op node used purely as a static interrupt anchor."""
-    return dict(_NOOP_UPDATE)
-
-
-def _hypothesis_deferred(state: EDAState) -> dict:
-    """Placeholder chase node. The adaptive hypothesis engine replaces this; until
-    then it records nothing and returns control to the orchestrator so the edge is
-    live rather than dead. The Phase-9 orchestrator never routes here.
-    """
     return dict(_NOOP_UPDATE)
 
 
@@ -69,7 +62,7 @@ def build_graph(checkpointer: Optional[object] = None):
     g.add_node("contract_gate", _passthrough)
     g.add_node("orchestrator", orchestrator)
     g.add_node("tool_runner", tool_runner)
-    g.add_node("hypothesis", _hypothesis_deferred)
+    g.add_node("hypothesis", hypothesis)
     g.add_node("review_gate", _passthrough)
     g.add_node("synthesizer", synthesizer)
 
