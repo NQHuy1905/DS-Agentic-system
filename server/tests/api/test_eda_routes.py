@@ -16,6 +16,15 @@ def test_health_ok():
     assert client.get("/health").json() == {"status": "ok"}
 
 
+def test_llmconfig_accepts_client_camelcase_api_key():
+    """The TS client sends `apiKey`; the schema must accept it and snake_case."""
+    from app.models.workflow_schemas import LLMConfig
+
+    camel = LLMConfig.model_validate({"provider": "openai", "model": "gpt-4o", "apiKey": "k"})
+    snake = LLMConfig.model_validate({"provider": "openai", "model": "gpt-4o", "api_key": "k"})
+    assert camel.api_key == "k" and snake.api_key == "k"
+
+
 def test_run_rejects_malformed_dataset_ref():
     # Traversal-looking ref fails the ref format check before any LLM/run work.
     r = client.post(
