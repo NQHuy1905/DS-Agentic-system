@@ -7,6 +7,9 @@ LOG_DIR="$SCRIPT_DIR/logs"
 CLIENT_LOG="$LOG_DIR/client.log"
 SERVER_LOG="$LOG_DIR/server.log"
 
+[[ -f "$SCRIPT_DIR/client/.env" ]] || cp "$SCRIPT_DIR/client/.env.example" "$SCRIPT_DIR/client/.env"
+[[ -f "$SCRIPT_DIR/server/.env" ]] || cp "$SCRIPT_DIR/server/.env.example" "$SCRIPT_DIR/server/.env"
+
 start() {
   if [[ -f "$PID_FILE" ]]; then
     echo "Already running. Run './dev.sh stop' first."
@@ -17,12 +20,14 @@ start() {
 
   echo "Starting client (Vite)..."
   cd "$SCRIPT_DIR/client"
-  npm run dev > "$CLIENT_LOG" 2>&1 &
+  setsid npm run dev > "$CLIENT_LOG" 2>&1 &
   echo $! >> "$PID_FILE"
 
   echo "Starting server (FastAPI)..."
   cd "$SCRIPT_DIR/server"
-  conda run -n research python3 run.py > "$SERVER_LOG" 2>&1 &
+  # --no-capture-output + python -u: stream logs live to server.log instead of
+  # buffering them inside `conda run` until the process exits.
+  setsid conda run --no-capture-output -n research python3 -u run.py > "$SERVER_LOG" 2>&1 &
   echo $! >> "$PID_FILE"
 
   echo "Client log : $CLIENT_LOG"
@@ -33,13 +38,13 @@ start() {
 
 stop_pid() {
   local pid=$1
-  if kill -0 "$pid" 2>/dev/null; then
-    # kill children first (handles conda run → uvicorn child process)
-    pkill -P "$pid" 2>/dev/null || true
-    kill "$pid" 2>/dev/null || true
-    echo "Stopped PID $pid"
+  if kill -0 -- "-$pid" 2>/dev/null; then
+    kill -- "-$pid" 2>/dev/null || true
+    sleep 1
+    kill -9 -- "-$pid" 2>/dev/null || true
+    echo "Stopped process group $pid"
   else
-    echo "PID $pid already gone"
+    echo "PG $pid already gone"
   fi
 }
 
@@ -52,6 +57,8 @@ stop() {
   while IFS= read -r pid; do
     stop_pid "$pid"
   done < "$PID_FILE"
+
+  pkill -f "$SCRIPT_DIR/client/node_modules/.bin/vite" 2>/dev/null || true
 
   rm -f "$PID_FILE"
   echo "All stopped."

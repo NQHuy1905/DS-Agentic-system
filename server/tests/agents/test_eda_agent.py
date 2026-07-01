@@ -170,8 +170,8 @@ async def _drive_llm_failure():
         assert service.status("err-run") == "error"
         ev = service.replay("err-run", 0)
         assert ev[-1].type == "error"
-        assert ev[-1].message == "The analysis run failed unexpectedly."   # generic
-        assert "sk-secret" not in ev[-1].message                            # raw detail not leaked
+        assert "RuntimeError" in ev[-1].message            # exception type surfaced
+        assert "sk-secret" not in ev[-1].message           # raw detail / secret not leaked
         assert "err-run" not in service._llms                               # secret store cleared
     finally:
         await conn.close()

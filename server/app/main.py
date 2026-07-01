@@ -1,7 +1,18 @@
+import logging
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.tracing import configure_tracing
+
+# Configure logging so application errors (e.g. a failed EDA run) surface with
+# full tracebacks on stdout -> server.log, instead of being swallowed. force=True
+# so this wins even after uvicorn sets up its own logging.
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    force=True,
+)
 from app.api.routes import eda, feature_engineering, hyperparam_opt, model_monitoring, pipeline_orchestration
 from app.ingestion.router import router as ingestion_router
 

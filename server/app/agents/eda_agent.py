@@ -128,11 +128,12 @@ class EDAService:
             await self._finalize_step(run_id, dataset_ref)
         except asyncio.CancelledError:
             raise
-        except Exception:  # surface as a terminal ErrorEvent (generic to the client)
-            # Full detail stays server-side; the SSE consumer must not receive raw
-            # exception text (could carry paths, data values, or provider errors).
+        except Exception as exc:  # surface as a terminal ErrorEvent (generic to the client)
+            # Full detail (with traceback) stays server-side in the log; the SSE
+            # consumer gets only the exception TYPE — enough to act on (e.g.
+            # AuthenticationError vs KeyError) without leaking paths/values/keys.
             logger.exception("EDA run %s failed", run_id)
-            self._emit(run_id, ErrorEvent(id=0, message="The analysis run failed unexpectedly."))
+            self._emit(run_id, ErrorEvent(id=0, message=f"The analysis run failed ({type(exc).__name__})."))
             self._status[run_id] = _ERROR
             storage.release(dataset_ref, run_id)
             self._cleanup_secret(run_id)
